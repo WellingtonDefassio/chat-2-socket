@@ -14,7 +14,10 @@ import wdefassi.io.chat2.entity.StateChat;
 import wdefassi.io.chat2.pubsub.Publisher;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
@@ -23,8 +26,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class WebSocketHandler extends TextWebSocketHandler {
     private final Map<String, StateChat> sessionFather = new ConcurrentHashMap<>();
     private final Map<String, String> fatherBySessionId = new ConcurrentHashMap<>();
-
     private final Publisher publisher;
+
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -32,28 +35,24 @@ public class WebSocketHandler extends TextWebSocketHandler {
         log.info("session uri: {}", session.getUri());
         Optional<String> optionalSessionId = getFatherBySessionId(session);
         if (optionalSessionId.isEmpty()) {
-            List<WebSocketSession> webSocketSessions = new ArrayList<>();
-            ArrayList<String> messages = new ArrayList<>();
-            webSocketSessions.add(session);
-            sessionFather.put(session.getId(), new StateChat(messages, webSocketSessions));
-            fatherBySessionId.put(session.getId(), session.getId());
+            createNewSessionFather(session);
         } else {
             StateChat stateChat = sessionFather.get(optionalSessionId.get());
             stateChat.getSessions().add(session);
             fatherBySessionId.put(session.getId(), optionalSessionId.get());
             sessionFather.put(optionalSessionId.get(), stateChat);
             if (!stateChat.getMessages().isEmpty()) {
-
                 stateChat.getMessages().forEach(message -> publisher.publishChatMessage(new SessionMessage(session.getId(), message)));
-//                stateChat.getMessages().forEach(m -> {
-//                    try {
-//                        session.sendMessage(new TextMessage(m));
-//                    } catch (IOException e) {
-//                        throw new RuntimeException(e);
-//                    }
-//                });
             }
         }
+    }
+
+    private void createNewSessionFather(WebSocketSession session) {
+        List<WebSocketSession> webSocketSessions = new ArrayList<>();
+        ArrayList<String> messages = new ArrayList<>();
+        webSocketSessions.add(session);
+        sessionFather.put(session.getId(), new StateChat(messages, webSocketSessions));
+        fatherBySessionId.put(session.getId(), session.getId());
     }
 
     @Override
@@ -89,9 +88,8 @@ public class WebSocketHandler extends TextWebSocketHandler {
     }
 
     public void sendToSessions(SessionMessage sessionsMessage) throws IOException {
-
         StateChat stateChat = sessionFather.get(sessionsMessage.getSessionFatherId());
-        if(stateChat == null) {
+        if (stateChat == null) {
             String fatherId = fatherBySessionId.get(sessionsMessage.getSessionFatherId());
             Optional<WebSocketSession> first = sessionFather.get(fatherId).getSessions().stream().filter(s -> s.getId().equals(sessionsMessage.getSessionFatherId())).findFirst();
             if (first.isPresent()) {

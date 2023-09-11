@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.TextMessage;
 import wdefassi.io.chat2.config.RedisConfig;
 import wdefassi.io.chat2.entity.SessionMessage;
 
